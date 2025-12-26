@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package rent;
+
+option go_package = "github.com/Domenick1991/students/rent-service/proto/rent";
+
+import "google/api/annotations.proto";
+
+service RentService {
+  rpc StartRent(StartRentRequest) returns (RentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/rent/start"
+      body: "*"
+    };
+  }
+  
+  rpc EndRent(EndRentRequest) returns (RentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/rent/end"
+      body: "*"
+    };
+  }
+  
+  rpc GetAvailableBikes(AvailableBikesRequest) returns (BikesList) {
+    option (google.api.http) = {
+      get: "/api/v1/bikes/available"
+    };
+  }
+  
+  rpc GetRentStats(StatsRequest) returns (StatsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/stats/daily/{date}"
+    };
+  }
+}
+
+message StartRentRequest {
+  string user_id = 1;
+  string bike_id = 2;
+}
+
+message EndRentRequest {
+  string rent_id = 1;
+  string user_id = 2;
+}
+
+message RentResponse {
+  string rent_id = 1;
+  string user_id = 2;
+  string bike_id = 3;
+  string status = 4;
+  string message = 5;
+  int64 start_time = 6;
+  int64 end_time = 7;
+}
+
+message AvailableBikesRequest {
+  string location = 1;
+}
+
+message Bike {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string location = 4;
+}
+
+message BikesList {
+  repeated Bike bikes = 1;
+}
+
+message StatsRequest {
+  string date = 1;
+}
+
+message StatsResponse {
+  string date = 1;
+  int64 total_rents = 2;
+  int64 active_rents = 3;
+  map<string, int64> location_stats = 4;
+}
+

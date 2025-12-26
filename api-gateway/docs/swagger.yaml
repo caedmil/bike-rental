@@ -1,0 +1,224 @@
+openapi: 3.0.0
+info:
+  title: Bike Rental API
+  version: 1.0.0
+  description: API for bike rental system
+  contact:
+    name: API Support
+    email: support@bikerental.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /api/v1/rent/start:
+    post:
+      summary: Start a bike rent
+      description: Start renting a bike
+      tags:
+        - rent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRentRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RentResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /api/v1/rent/end:
+    post:
+      summary: End a bike rent
+      description: End an active bike rent
+      tags:
+        - rent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndRentRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RentResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /api/v1/bikes/available:
+    get:
+      summary: Get available bikes
+      description: Get list of available bikes
+      tags:
+        - bikes
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BikesListResponse'
+        '500':
+          description: Internal server error
+
+  /api/v1/stats/daily/{date}:
+    get:
+      summary: Get daily statistics
+      description: Get statistics for a specific date
+      tags:
+        - stats
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Date in YYYY-MM-DD format
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyStatsResponse'
+        '500':
+          description: Internal server error
+
+  /api/v1/stats/active:
+    get:
+      summary: Get active rents count
+      description: Get current number of active rents
+      tags:
+        - stats
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveRentsResponse'
+        '500':
+          description: Internal server error
+
+  /health:
+    get:
+      summary: Health check
+      description: Health check endpoint
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+components:
+  schemas:
+    StartRentRequest:
+      type: object
+      required:
+        - user_id
+        - bike_id
+      properties:
+        user_id:
+          type: string
+          description: User ID
+        bike_id:
+          type: string
+          description: Bike ID
+
+    EndRentRequest:
+      type: object
+      required:
+        - rent_id
+        - user_id
+      properties:
+        rent_id:
+          type: string
+          description: Rent ID
+        user_id:
+          type: string
+          description: User ID
+
+    RentResponse:
+      type: object
+      properties:
+        rent_id:
+          type: string
+        user_id:
+          type: string
+        bike_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        start_time:
+          type: integer
+          format: int64
+        end_time:
+          type: integer
+          format: int64
+
+    Bike:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        location:
+          type: string
+
+    BikesListResponse:
+      type: object
+      properties:
+        bikes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bike'
+
+    DailyStatsResponse:
+      type: object
+      properties:
+        date:
+          type: string
+        count:
+          type: integer
+          format: int64
+
+    ActiveRentsResponse:
+      type: object
+      properties:
+        active_rents:
+          type: integer
+          format: int64
+

@@ -1,0 +1,27 @@
+database:
+  postgres:
+    host: "postgres"
+    port: 5432
+    user: "user"
+    password: "pass"
+    dbname: "bikerent"
+    ssl_mode: "disable"
+  
+  redis:
+    address: "redis:6379"
+    password: ""
+    db: 0
+
+kafka:
+  brokers: ["kafka:9094"]
+  topics:
+    rent_events: "bike-rent-events"
+    status_events: "bike-status-events"
+
+services:
+  rent_service: "rent-service:50051"
+
+server:
+  api_gateway_port: 8080
+  rent_service_port: 50051
+  stats_service_port: 8081
