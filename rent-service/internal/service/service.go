@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/Domenick1991/students/rent-service/internal/models"
-	"github.com/Domenick1991/students/rent-service/internal/repository"
+	"bike-rental/rent-service/internal/kafka"
+	"bike-rental/rent-service/internal/models"
+	"bike-rental/rent-service/internal/repository"
 	"github.com/google/uuid"
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 )
 
 type Service interface {
@@ -20,13 +22,15 @@ type Service interface {
 
 type service struct {
 	repo   repository.Repository
-	writer *kafka.Writer
+	writer kafka.Writer
+	topic  string
 }
 
-func NewService(repo repository.Repository, writer *kafka.Writer) Service {
+func NewService(repo repository.Repository, writer kafka.Writer, topic string) Service {
 	return &service{
 		repo:   repo,
 		writer: writer,
+		topic:  topic,
 	}
 }
 
@@ -52,7 +56,9 @@ func (s *service) StartRent(ctx context.Context, userID string, bikeID string) (
 
 	if err := s.publishRentEvent(ctx, event); err != nil {
 		// Log error but don't fail the operation
-		fmt.Printf("Failed to publish rent event: %v\n", err)
+		log.Printf("Failed to publish rent event: %v", err)
+	} else {
+		log.Printf("Successfully published rent event: rent_id=%s, event_type=%s", event.RentID, event.EventType)
 	}
 
 	return rent, nil
@@ -80,7 +86,9 @@ func (s *service) EndRent(ctx context.Context, rentID string, userID string) (*m
 
 	if err := s.publishRentEvent(ctx, event); err != nil {
 		// Log error but don't fail the operation
-		fmt.Printf("Failed to publish rent event: %v\n", err)
+		log.Printf("Failed to publish rent event: %v", err)
+	} else {
+		log.Printf("Successfully published rent event: rent_id=%s, event_type=%s", event.RentID, event.EventType)
 	}
 
 	return rent, nil
@@ -96,14 +104,17 @@ func (s *service) publishRentEvent(ctx context.Context, event models.RentEvent) 
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	err = s.writer.WriteMessages(ctx, kafka.Message{
+	log.Printf("Publishing event to Kafka: topic=%s, rent_id=%s, event_type=%s", s.topic, event.RentID, event.EventType)
+	
+	err = s.writer.WriteMessages(ctx, kafkago.Message{
 		Key:   []byte(event.RentID),
 		Value: eventJSON,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to write message: %w", err)
+		return fmt.Errorf("failed to write message to Kafka: %w", err)
 	}
 
+	log.Printf("Event published successfully to Kafka: rent_id=%s", event.RentID)
 	return nil
 }
 

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package rent;
 
-option go_package = "github.com/Domenick1991/students/rent-service/proto/rent";
+option go_package = "bike-rental/rent-service/proto/rent";
 
 import "google/api/annotations.proto";
 

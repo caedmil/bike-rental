@@ -2,19 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/Domenick1991/students/api-gateway/internal/client"
-	"github.com/Domenick1991/students/api-gateway/internal/handlers"
-	"github.com/Domenick1991/students/config"
+	"bike-rental/api-gateway/internal/client"
+	"bike-rental/api-gateway/internal/handlers"
+	"bike-rental/config"
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"gopkg.in/yaml.v3"
 )
 
 // @title Bike Rental API
@@ -50,10 +53,49 @@ func main() {
 	r := chi.NewRouter()
 
 	// Swagger - serve YAML as JSON for compatibility
-	r.Get("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-		// For now, return empty JSON - in production, convert YAML to JSON
+	r.Get("/swagger.json", func(w http.ResponseWriter, req *http.Request) {
+		// Read swagger.yaml file - try multiple possible paths
+		possiblePaths := []string{
+			filepath.Join("docs", "swagger.yaml"),
+			filepath.Join("api-gateway", "docs", "swagger.yaml"),
+			filepath.Join("/root", "docs", "swagger.yaml"),
+		}
+		
+		var yamlData []byte
+		var err error
+		for _, path := range possiblePaths {
+			if _, err := os.Stat(path); err == nil {
+				yamlData, err = os.ReadFile(path)
+				if err == nil {
+					break
+				}
+			}
+		}
+		
+		if yamlData == nil {
+			log.Printf("Failed to find swagger.yaml in any of the paths: %v", possiblePaths)
+			http.Error(w, "Failed to load Swagger documentation", http.StatusInternalServerError)
+			return
+		}
+
+		// Parse YAML
+		var swaggerData map[string]interface{}
+		if err := yaml.Unmarshal(yamlData, &swaggerData); err != nil {
+			log.Printf("Failed to parse swagger.yaml: %v", err)
+			http.Error(w, "Failed to parse Swagger documentation", http.StatusInternalServerError)
+			return
+		}
+
+		// Convert to JSON
+		jsonData, err := json.Marshal(swaggerData)
+		if err != nil {
+			log.Printf("Failed to convert to JSON: %v", err)
+			http.Error(w, "Failed to convert Swagger documentation", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"openapi":"3.0.0","info":{"title":"Bike Rental API","version":"1.0.0"},"paths":{}}`))
+		w.Write(jsonData)
 	})
 
 	r.Get("/docs/*", httpSwagger.Handler(

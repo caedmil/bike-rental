@@ -15,6 +15,8 @@ User → API Gateway (HTTP) → Rent Service (gRPC) → PostgreSQL
 1. **API Gateway** (порт 8080) - HTTP API с Swagger документацией
 2. **Rent Service** (gRPC порт 50051) - Сервис управления арендой
 3. **Stats Service** (HTTP порт 8081) - Сервис статистики
+4. **Kafka UI** (порт 8082) - Веб-интерфейс для просмотра топиков и сообщений Kafka
+5. **Redis Commander** (порт 8083) - Веб-интерфейс для просмотра данных в Redis
 
 ## Технологии
 
@@ -186,10 +188,65 @@ cd api-gateway && go run cmd/main.go
 
 ## Мониторинг
 
-- Kafka UI: http://localhost:8081 (если включен в docker-compose)
-- Health checks доступны на всех сервисах
+### Kafka UI
+Доступен по адресу: **http://localhost:8082**
 
-## Лицензия
+Позволяет:
+- Просматривать все топики Kafka
+- Видеть сообщения в реальном времени
+- Мониторить consumer groups
+- Просматривать метаданные брокеров
+
+### Redis Commander
+Доступен по адресу: **http://localhost:8083**
+
+Учетные данные:
+- Username: `admin`
+- Password: `admin`
+
+Позволяет:
+- Просматривать все ключи в Redis
+- Видеть значения в реальном времени
+- Мониторить статистику Redis
+- Выполнять команды Redis
+
+### Health Checks
+Доступны на всех сервисах:
+- API Gateway: http://localhost:8080/health
+- Stats Service: http://localhost:8081/health
+- Rent Service: gRPC на порту 50051
+
+## 🧪 Тестирование
+
+### Запуск тестов
+
+```bash
+# Все тесты
+go test ./rent-service/internal/service/... -v
+
+# С покрытием
+go test ./rent-service/internal/service/... -v -cover
+
+# Генерация HTML отчета
+go test ./rent-service/internal/service/... -coverprofile=coverage.out
+go tool cover -html=coverage.out -o coverage.html
+```
+
+### Структура тестов
+
+**Файл:** `rent-service/internal/service/service_test.go`
+
+**Покрытие:** 10 тестов для Service слоя:
+- StartRent (4 теста: success, invalid ID, repo error, kafka error)
+- EndRent (3 теста: success, invalid ID, repo error)
+- GetAvailableBikes (3 теста: success, empty, repo error)
+
+**Технологии:**
+- testify/suite - Test Suites
+- testify/mock - Моки для Repository и Kafka Writer
+- testify/assert - Assertions
+
+ **Подробная документация:** [TESTS_README.md](TESTS_README.md)
 
 MIT
 

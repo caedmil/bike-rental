@@ -13,7 +13,7 @@ database:
     db: 0
 
 kafka:
-  brokers: ["kafka:9094"]
+  brokers: ["kafka:9092"]
   topics:
     rent_events: "bike-rent-events"
     status_events: "bike-status-events"

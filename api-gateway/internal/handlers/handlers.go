@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
-	"github.com/Domenick1991/students/api-gateway/internal/client"
+	"bike-rental/api-gateway/internal/client"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -36,11 +37,17 @@ func (h *Handlers) StartRent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log request
+	log.Printf("API Gateway: Received StartRent request: user_id=%s, bike_id=%s", req.UserID, req.BikeID)
+
 	response, err := h.rentClient.StartRent(r.Context(), req.UserID, req.BikeID)
 	if err != nil {
+		log.Printf("API Gateway: Error calling rent service: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("API Gateway: StartRent successful: rent_id=%s", response.RentID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)

@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 
-	"github.com/Domenick1991/students/rent-service/internal/service"
-	"github.com/Domenick1991/students/rent-service/proto/rent"
+	"bike-rental/rent-service/internal/service"
+	"bike-rental/rent-service/proto/rent"
 )
 
 type RentServer struct {

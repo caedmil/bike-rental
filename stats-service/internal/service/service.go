@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Domenick1991/students/stats-service/internal/repository"
+	"bike-rental/stats-service/internal/repository"
 )
 
 type Service interface {

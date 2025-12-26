@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -15,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
+      test: ["CMD-SHELL", "pg_isready -U user -d bikerent"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -38,27 +37,37 @@ services:
     networks:
       - bike-rental-net
 
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: zookeeper
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    networks:
+      - bike-rental-net
+
   kafka:
-    image: apache/kafka:latest
+    image: wurstmeister/kafka:latest
     container_name: kafka
-    environment:
-      - CLUSTER_ID=5L6g3nShT-eMCtK--X86sw
-      - KAFKA_NODE_ID=1
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_LISTENERS=PLAINTEXT_HOST://:9092,PLAINTEXT_DOCKER://:9094,CONTROLLER://:9093
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT_HOST://localhost:9092,PLAINTEXT_DOCKER://kafka:9094
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT_DOCKER:PLAINTEXT
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT_DOCKER
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_LOG_DIRS=/kafka/kraft-combined-logs
+    restart: unless-stopped
     ports:
       - "9092:9092"
-      - "9094:9094"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "bike-rent-events:1:1,bike-status-events:1:1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     volumes:
-      - kafka_data:/kafka/kraft-combined-logs
+      - kafka_data:/kafka
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list 2>&1 | grep -q bike-rent-events || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
     networks:
       - bike-rental-net
 
@@ -76,7 +85,7 @@ services:
       postgres:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     networks:
       - bike-rental-net
 
@@ -96,7 +105,7 @@ services:
       redis:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     networks:
       - bike-rental-net
 
@@ -115,6 +124,37 @@ services:
     depends_on:
       - rent-service
       - stats-service
+    networks:
+      - bike-rental-net
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_KRAFTENABLED=true
+      - KAFKA_CLUSTERS_0_READONLY=false
+    depends_on:
+      - kafka
+    networks:
+      - bike-rental-net
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    restart: unless-stopped
+    ports:
+      - "8083:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=admin
+    depends_on:
+      - redis
     networks:
       - bike-rental-net
 

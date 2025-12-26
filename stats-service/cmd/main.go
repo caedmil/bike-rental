@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Domenick1991/students/config"
-	"github.com/Domenick1991/students/stats-service/internal/consumer"
-	"github.com/Domenick1991/students/stats-service/internal/handlers"
-	"github.com/Domenick1991/students/stats-service/internal/repository"
-	"github.com/Domenick1991/students/stats-service/internal/service"
+	"bike-rental/config"
+	"bike-rental/stats-service/internal/consumer"
+	"bike-rental/stats-service/internal/handlers"
+	"bike-rental/stats-service/internal/repository"
+	"bike-rental/stats-service/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 )

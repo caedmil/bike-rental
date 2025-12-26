@@ -9,11 +9,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Domenick1991/students/config"
-	"github.com/Domenick1991/students/rent-service/internal/repository"
-	"github.com/Domenick1991/students/rent-service/internal/server"
-	"github.com/Domenick1991/students/rent-service/internal/service"
-	"github.com/Domenick1991/students/rent-service/proto/rent"
+	"bike-rental/config"
+	kafkawriter "bike-rental/rent-service/internal/kafka"
+	"bike-rental/rent-service/internal/repository"
+	"bike-rental/rent-service/internal/server"
+	"bike-rental/rent-service/internal/service"
+	"bike-rental/rent-service/proto/rent"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
@@ -26,14 +28,21 @@ func main() {
 	}
 
 	// Connect to PostgreSQL
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.Database.Postgres.User,
-		cfg.Database.Postgres.Password,
+	// Format: postgres://user:password@host:port/dbname?sslmode=...
+	// IMPORTANT: Order is user, password, host, port, dbname, sslmode
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Database.Postgres.Host,
 		cfg.Database.Postgres.Port,
+		cfg.Database.Postgres.User,
+		cfg.Database.Postgres.Password,
 		cfg.Database.Postgres.DBName,
 		cfg.Database.Postgres.SSLMode,
 	)
+	log.Printf("Connecting to database: host=%s port=%d user=%s dbname=%s",
+		cfg.Database.Postgres.Host,
+		cfg.Database.Postgres.Port,
+		cfg.Database.Postgres.User,
+		cfg.Database.Postgres.DBName)
 
 	db, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
@@ -42,16 +51,21 @@ func main() {
 	defer db.Close()
 
 	// Create Kafka writer
-	writer := &kafka.Writer{
-		Addr:     kafka.TCP(cfg.Kafka.Brokers...),
-		Topic:    cfg.Kafka.Topics.RentEvents,
-		Balancer: &kafka.LeastBytes{},
+	kafkaWriterImpl := &kafka.Writer{
+		Addr:                   kafka.TCP(cfg.Kafka.Brokers...),
+		Topic:                  cfg.Kafka.Topics.RentEvents,
+		Balancer:               &kafka.LeastBytes{},
+		AllowAutoTopicCreation: true,
 	}
-	defer writer.Close()
+	defer kafkaWriterImpl.Close()
+
+	// Test Kafka connection by creating topic if it doesn't exist
+	log.Printf("Kafka writer configured: brokers=%v, topic=%s", cfg.Kafka.Brokers, cfg.Kafka.Topics.RentEvents)
 
 	// Initialize repository and service
 	repo := repository.NewRepository(db)
-	svc := service.NewService(repo, writer)
+	kafkaWriter := kafkawriter.NewKafkaWriter(kafkaWriterImpl)
+	svc := service.NewService(repo, kafkaWriter, cfg.Kafka.Topics.RentEvents)
 
 	// Create gRPC server
 	grpcServer := grpc.NewServer()
@@ -80,4 +94,3 @@ func main() {
 	log.Println("Shutting down Rent Service...")
 	grpcServer.GracefulStop()
 }
-

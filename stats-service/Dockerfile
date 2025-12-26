@@ -19,7 +19,7 @@ RUN go mod download
 
 # Build the application
 WORKDIR /app/stats-service
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/stats-service ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o stats-service ./cmd/main.go
 
 FROM debian:bookworm-slim
 
@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 WORKDIR /root/
 
-COPY --from=builder /app/stats-service .
+COPY --from=builder /app/stats-service/stats-service .
 
 EXPOSE 8081
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Domenick1991/students/api-gateway/internal/models"
-	"github.com/Domenick1991/students/rent-service/proto/rent"
+	"bike-rental/api-gateway/internal/models"
+	"bike-rental/rent-service/proto/rent"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

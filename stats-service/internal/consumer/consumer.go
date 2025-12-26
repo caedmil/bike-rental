@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Domenick1991/students/stats-service/internal/repository"
+	"bike-rental/stats-service/internal/repository"
 	"github.com/segmentio/kafka-go"
 )
 
