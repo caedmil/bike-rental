@@ -14,6 +14,8 @@ type RentClient interface {
 	StartRent(ctx context.Context, userID, bikeID string) (*models.RentResponse, error)
 	EndRent(ctx context.Context, rentID, userID string) (*models.RentResponse, error)
 	GetAvailableBikes(ctx context.Context, location string) (*models.BikesList, error)
+	AddBike(ctx context.Context, name, location string) (*models.BikeResponse, error)
+	DeleteBike(ctx context.Context, bikeID string) (*models.DeleteBikeResponse, error)
 	Close() error
 }
 
@@ -93,6 +95,38 @@ func (c *rentClient) GetAvailableBikes(ctx context.Context, location string) (*m
 	}
 
 	return &models.BikesList{Bikes: bikes}, nil
+}
+
+func (c *rentClient) AddBike(ctx context.Context, name, location string) (*models.BikeResponse, error) {
+	resp, err := c.client.AddBike(ctx, &rent.AddBikeRequest{
+		Name:     name,
+		Location: location,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.BikeResponse{
+		ID:       resp.Id,
+		Name:     resp.Name,
+		Status:   resp.Status,
+		Location: resp.Location,
+		Message:  resp.Message,
+	}, nil
+}
+
+func (c *rentClient) DeleteBike(ctx context.Context, bikeID string) (*models.DeleteBikeResponse, error) {
+	resp, err := c.client.DeleteBike(ctx, &rent.DeleteBikeRequest{
+		BikeId: bikeID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.DeleteBikeResponse{
+		Success: resp.Success,
+		Message: resp.Message,
+	}, nil
 }
 
 func (c *rentClient) Close() error {

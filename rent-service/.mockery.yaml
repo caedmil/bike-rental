@@ -1,0 +1,16 @@
+with-expecter: true
+dir: "mocks"
+packages:
+  bike-rental/rent-service/internal/repository:
+    interfaces:
+      Repository:
+        config:
+          filename: "repository_mock.go"
+          mockname: "Repository"
+  bike-rental/rent-service/internal/kafka:
+    interfaces:
+      Writer:
+        config:
+          filename: "kafka_writer_mock.go"
+          mockname: "Writer"
+

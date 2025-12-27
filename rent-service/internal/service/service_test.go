@@ -7,98 +7,27 @@ import (
 	"time"
 
 	"bike-rental/rent-service/internal/models"
+	"bike-rental/rent-service/mocks"
 	"github.com/google/uuid"
-	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-// MockRepository - мок для Repository интерфейса
-type MockRepository struct {
-	mock.Mock
-}
-
-func (m *MockRepository) GetAvailableBikes(ctx context.Context, location string) ([]models.Bike, error) {
-	args := m.Called(ctx, location)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Bike), args.Error(1)
-}
-
-func (m *MockRepository) GetBikeByID(ctx context.Context, bikeID uuid.UUID) (*models.Bike, error) {
-	args := m.Called(ctx, bikeID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Bike), args.Error(1)
-}
-
-func (m *MockRepository) StartRent(ctx context.Context, userID string, bikeID uuid.UUID) (*models.Rent, error) {
-	args := m.Called(ctx, userID, bikeID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Rent), args.Error(1)
-}
-
-func (m *MockRepository) EndRent(ctx context.Context, rentID uuid.UUID, userID string) (*models.Rent, error) {
-	args := m.Called(ctx, rentID, userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Rent), args.Error(1)
-}
-
-func (m *MockRepository) GetRentByID(ctx context.Context, rentID uuid.UUID) (*models.Rent, error) {
-	args := m.Called(ctx, rentID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Rent), args.Error(1)
-}
-
-func (m *MockRepository) UpdateBikeStatus(ctx context.Context, bikeID uuid.UUID, status string) error {
-	args := m.Called(ctx, bikeID, status)
-	return args.Error(0)
-}
-
-// MockKafkaWriter - мок для Kafka Writer интерфейса
-type MockKafkaWriter struct {
-	mock.Mock
-}
-
-func (m *MockKafkaWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) error {
-	args := m.Called(ctx, msgs)
-	return args.Error(0)
-}
-
-func (m *MockKafkaWriter) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
 // ServiceTestSuite - тестовый набор для Service
 type ServiceTestSuite struct {
 	suite.Suite
-	mockRepo   *MockRepository
-	mockWriter *MockKafkaWriter
+	mockRepo   *mocks.Repository
+	mockWriter *mocks.Writer
 	service    Service
 	ctx        context.Context
 }
 
 // SetupTest - вызывается перед каждым тестом
 func (suite *ServiceTestSuite) SetupTest() {
-	suite.mockRepo = new(MockRepository)
-	suite.mockWriter = new(MockKafkaWriter)
+	suite.mockRepo = mocks.NewRepository(suite.T())
+	suite.mockWriter = mocks.NewWriter(suite.T())
 	suite.service = NewService(suite.mockRepo, suite.mockWriter, "test-topic")
 	suite.ctx = context.Background()
-}
-
-// TearDownTest - вызывается после каждого теста
-func (suite *ServiceTestSuite) TearDownTest() {
-	suite.mockRepo.AssertExpectations(suite.T())
-	suite.mockWriter.AssertExpectations(suite.T())
 }
 
 // TestStartRent_Success - тест успешного старта аренды
@@ -324,6 +253,134 @@ func (suite *ServiceTestSuite) TestGetAvailableBikes_RepositoryError() {
 	suite.Error(err)
 	suite.Nil(result)
 	suite.Equal(expectedError, err)
+}
+
+// TestAddBike_Success - тест успешного добавления велосипеда
+func (suite *ServiceTestSuite) TestAddBike_Success() {
+	// Arrange
+	name := "Mountain Bike"
+	location := "Park A"
+	expectedBike := &models.Bike{
+		ID:        uuid.New(),
+		Name:      name,
+		Status:    "available",
+		Location:  location,
+		CreatedAt: time.Now(),
+	}
+
+	suite.mockRepo.On("AddBike", suite.ctx, name, location).Return(expectedBike, nil)
+
+	// Act
+	result, err := suite.service.AddBike(suite.ctx, name, location)
+
+	// Assert
+	suite.NoError(err)
+	suite.NotNil(result)
+	suite.Equal(expectedBike.ID, result.ID)
+	suite.Equal(name, result.Name)
+	suite.Equal("available", result.Status)
+	suite.Equal(location, result.Location)
+}
+
+// TestAddBike_EmptyName - тест с пустым именем велосипеда
+func (suite *ServiceTestSuite) TestAddBike_EmptyName() {
+	// Arrange
+	name := ""
+	location := "Park A"
+
+	// Act
+	result, err := suite.service.AddBike(suite.ctx, name, location)
+
+	// Assert
+	suite.Error(err)
+	suite.Nil(result)
+	suite.Contains(err.Error(), "bike name is required")
+}
+
+// TestAddBike_EmptyLocation - тест с пустой локацией
+func (suite *ServiceTestSuite) TestAddBike_EmptyLocation() {
+	// Arrange
+	name := "Mountain Bike"
+	location := ""
+
+	// Act
+	result, err := suite.service.AddBike(suite.ctx, name, location)
+
+	// Assert
+	suite.Error(err)
+	suite.Nil(result)
+	suite.Contains(err.Error(), "bike location is required")
+}
+
+// TestDeleteBike_Success - тест успешного удаления велосипеда
+func (suite *ServiceTestSuite) TestDeleteBike_Success() {
+	// Arrange
+	bikeID := uuid.New()
+	bikeIDStr := bikeID.String()
+	
+	bike := &models.Bike{
+		ID:        bikeID,
+		Name:      "Test Bike",
+		Status:    "available",
+		Location:  "Park A",
+		CreatedAt: time.Now(),
+	}
+
+	suite.mockRepo.On("HasActiveRent", suite.ctx, bikeID).Return(false, nil)
+	suite.mockRepo.On("GetBikeByID", suite.ctx, bikeID).Return(bike, nil)
+	suite.mockRepo.On("DeleteBike", suite.ctx, bikeID).Return(nil)
+
+	// Act
+	err := suite.service.DeleteBike(suite.ctx, bikeIDStr)
+
+	// Assert
+	suite.NoError(err)
+}
+
+// TestDeleteBike_InvalidUUID - тест с невалидным UUID
+func (suite *ServiceTestSuite) TestDeleteBike_InvalidUUID() {
+	// Arrange
+	invalidBikeID := "invalid-uuid"
+
+	// Act
+	err := suite.service.DeleteBike(suite.ctx, invalidBikeID)
+
+	// Assert
+	suite.Error(err)
+	suite.Contains(err.Error(), "invalid bike_id")
+}
+
+// TestDeleteBike_HasActiveRent - тест попытки удалить велосипед с активной арендой
+func (suite *ServiceTestSuite) TestDeleteBike_HasActiveRent() {
+	// Arrange
+	bikeID := uuid.New()
+	bikeIDStr := bikeID.String()
+
+	suite.mockRepo.On("HasActiveRent", suite.ctx, bikeID).Return(true, nil)
+
+	// Act
+	err := suite.service.DeleteBike(suite.ctx, bikeIDStr)
+
+	// Assert
+	suite.Error(err)
+	suite.Contains(err.Error(), "cannot delete bike: bike has active rent")
+}
+
+// TestDeleteBike_BikeNotFound - тест удаления несуществующего велосипеда
+func (suite *ServiceTestSuite) TestDeleteBike_BikeNotFound() {
+	// Arrange
+	bikeID := uuid.New()
+	bikeIDStr := bikeID.String()
+
+	suite.mockRepo.On("HasActiveRent", suite.ctx, bikeID).Return(false, nil)
+	suite.mockRepo.On("GetBikeByID", suite.ctx, bikeID).Return(nil, errors.New("bike not found"))
+
+	// Act
+	err := suite.service.DeleteBike(suite.ctx, bikeIDStr)
+
+	// Assert
+	suite.Error(err)
+	suite.Contains(err.Error(), "bike not found")
 }
 
 // TestServiceTestSuite - запуск всего набора тестов

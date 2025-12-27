@@ -18,6 +18,9 @@ type Repository interface {
 	EndRent(ctx context.Context, rentID uuid.UUID, userID string) (*models.Rent, error)
 	GetRentByID(ctx context.Context, rentID uuid.UUID) (*models.Rent, error)
 	UpdateBikeStatus(ctx context.Context, bikeID uuid.UUID, status string) error
+	AddBike(ctx context.Context, name, location string) (*models.Bike, error)
+	DeleteBike(ctx context.Context, bikeID uuid.UUID) error
+	HasActiveRent(ctx context.Context, bikeID uuid.UUID) (bool, error)
 }
 
 type repository struct {
@@ -201,6 +204,79 @@ func (r *repository) UpdateBikeStatus(ctx context.Context, bikeID uuid.UUID, sta
 	if err != nil {
 		return fmt.Errorf("failed to update bike status: %w", err)
 	}
+	return nil
+}
+
+func (r *repository) AddBike(ctx context.Context, name, location string) (*models.Bike, error) {
+	var bike models.Bike
+	err := r.db.QueryRow(ctx,
+		`INSERT INTO bikes (name, status, location, created_at)
+		 VALUES ($1, 'available', $2, NOW())
+		 RETURNING id, name, status, location, created_at`,
+		name, location,
+	).Scan(&bike.ID, &bike.Name, &bike.Status, &bike.Location, &bike.CreatedAt)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to add bike: %w", err)
+	}
+	
+	return &bike, nil
+}
+
+func (r *repository) HasActiveRent(ctx context.Context, bikeID uuid.UUID) (bool, error) {
+	var count int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM rents WHERE bike_id = $1 AND status = 'active'`,
+		bikeID,
+	).Scan(&count)
+	
+	if err != nil {
+		return false, fmt.Errorf("failed to check active rents: %w", err)
+	}
+	
+	return count > 0, nil
+}
+
+func (r *repository) DeleteBike(ctx context.Context, bikeID uuid.UUID) error {
+	// First check if bike exists
+	var exists bool
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM bikes WHERE id = $1)", bikeID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check bike existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("bike not found")
+	}
+	
+	// Start transaction to delete bike and related rents
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	
+	// First delete all rents for this bike (CASCADE manually)
+	_, err = tx.Exec(ctx, "DELETE FROM rents WHERE bike_id = $1", bikeID)
+	if err != nil {
+		return fmt.Errorf("failed to delete related rents: %w", err)
+	}
+	
+	// Then delete the bike
+	result, err := tx.Exec(ctx, "DELETE FROM bikes WHERE id = $1", bikeID)
+	if err != nil {
+		return fmt.Errorf("failed to delete bike: %w", err)
+	}
+	
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("bike not found")
+	}
+	
+	// Commit transaction
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	
 	return nil
 }
 

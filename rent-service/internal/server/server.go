@@ -95,3 +95,36 @@ func (s *RentServer) GetRentStats(ctx context.Context, req *rent.StatsRequest) (
 	}, nil
 }
 
+func (s *RentServer) AddBike(ctx context.Context, req *rent.AddBikeRequest) (*rent.BikeResponse, error) {
+	bike, err := s.service.AddBike(ctx, req.Name, req.Location)
+	if err != nil {
+		return &rent.BikeResponse{
+			Status:  "error",
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &rent.BikeResponse{
+		Id:       bike.ID.String(),
+		Name:     bike.Name,
+		Status:   bike.Status,
+		Location: bike.Location,
+		Message:  "Bike added successfully",
+	}, nil
+}
+
+func (s *RentServer) DeleteBike(ctx context.Context, req *rent.DeleteBikeRequest) (*rent.DeleteBikeResponse, error) {
+	err := s.service.DeleteBike(ctx, req.BikeId)
+	if err != nil {
+		return &rent.DeleteBikeResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &rent.DeleteBikeResponse{
+		Success: true,
+		Message: "Bike deleted successfully",
+	}, nil
+}
+

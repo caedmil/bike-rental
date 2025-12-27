@@ -83,6 +83,62 @@ paths:
         '500':
           description: Internal server error
 
+  /api/v1/bikes/add:
+    post:
+      summary: Add a new bike
+      description: Add a new bike to the fleet
+      tags:
+        - bikes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddBikeRequest'
+            example:
+              name: "Bike 10"
+              location: "Location A"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BikeResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /api/v1/bikes/{bike_id}:
+    delete:
+      summary: Delete a bike
+      description: Delete a bike from the fleet by ID
+      tags:
+        - bikes
+      parameters:
+        - name: bike_id
+          in: path
+          required: true
+          description: Bike ID (UUID)
+          schema:
+            type: string
+            format: uuid
+          example: "88d3d3d9-3738-4e89-bda5-9c0cbccef61a"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteBikeResponse'
+        '400':
+          description: Bad request (e.g., bike has active rent)
+        '404':
+          description: Bike not found
+        '500':
+          description: Internal server error
+
   /api/v1/stats/daily/{date}:
     get:
       summary: Get daily statistics
@@ -221,4 +277,49 @@ components:
         active_rents:
           type: integer
           format: int64
+
+    AddBikeRequest:
+      type: object
+      required:
+        - name
+        - location
+      properties:
+        name:
+          type: string
+          description: Bike name
+          example: "Bike 10"
+        location:
+          type: string
+          description: Bike location
+          example: "Location A"
+
+    BikeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Bike ID (UUID)
+        name:
+          type: string
+          description: Bike name
+        status:
+          type: string
+          description: Bike status (available, rented, maintenance)
+        location:
+          type: string
+          description: Bike location
+        message:
+          type: string
+          description: Response message
+
+    DeleteBikeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the deletion was successful
+        message:
+          type: string
+          description: Response message
+          example: "Bike deleted successfully"
 

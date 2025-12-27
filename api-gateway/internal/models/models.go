@@ -21,3 +21,16 @@ type Bike struct {
 	Location string `json:"location"`
 }
 
+type BikeResponse struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Location string `json:"location"`
+	Message  string `json:"message"`
+}
+
+type DeleteBikeResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+

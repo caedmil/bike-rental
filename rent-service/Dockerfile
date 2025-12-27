@@ -23,7 +23,7 @@ COPY . .
 # Generate proto files
 WORKDIR /app
 ENV PATH=$PATH:/root/go/bin
-RUN protoc -I ./rent-service/proto -I ./api \
+RUN protoc -I ./rent-service/proto \
     --go_out=./rent-service/proto/rent --go_opt=paths=source_relative \
     --go-grpc_out=./rent-service/proto/rent --go-grpc_opt=paths=source_relative \
     ./rent-service/proto/rent.proto

@@ -4,34 +4,13 @@ package rent;
 
 option go_package = "bike-rental/rent-service/proto/rent";
 
-import "google/api/annotations.proto";
-
 service RentService {
-  rpc StartRent(StartRentRequest) returns (RentResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/rent/start"
-      body: "*"
-    };
-  }
-  
-  rpc EndRent(EndRentRequest) returns (RentResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/rent/end"
-      body: "*"
-    };
-  }
-  
-  rpc GetAvailableBikes(AvailableBikesRequest) returns (BikesList) {
-    option (google.api.http) = {
-      get: "/api/v1/bikes/available"
-    };
-  }
-  
-  rpc GetRentStats(StatsRequest) returns (StatsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/stats/daily/{date}"
-    };
-  }
+  rpc StartRent(StartRentRequest) returns (RentResponse);
+  rpc EndRent(EndRentRequest) returns (RentResponse);
+  rpc GetAvailableBikes(AvailableBikesRequest) returns (BikesList);
+  rpc GetRentStats(StatsRequest) returns (StatsResponse);
+  rpc AddBike(AddBikeRequest) returns (BikeResponse);
+  rpc DeleteBike(DeleteBikeRequest) returns (DeleteBikeResponse);
 }
 
 message StartRentRequest {
@@ -78,5 +57,27 @@ message StatsResponse {
   int64 total_rents = 2;
   int64 active_rents = 3;
   map<string, int64> location_stats = 4;
+}
+
+message AddBikeRequest {
+  string name = 1;
+  string location = 2;
+}
+
+message BikeResponse {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string location = 4;
+  string message = 5;
+}
+
+message DeleteBikeRequest {
+  string bike_id = 1;
+}
+
+message DeleteBikeResponse {
+  bool success = 1;
+  string message = 2;
 }
 

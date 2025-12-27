@@ -153,10 +153,81 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+// @Summary Add a new bike
+// @Description Add a new bike to the fleet
+// @Tags bikes
+// @Accept json
+// @Produce json
+// @Param request body AddBikeRequest true "Add bike request"
+// @Success 200 {object} BikeResponse
+// @Router /api/v1/bikes/add [post]
+func (h *Handlers) AddBike(w http.ResponseWriter, r *http.Request) {
+	var req AddBikeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Log request
+	log.Printf("API Gateway: Received AddBike request: name=%s, location=%s", req.Name, req.Location)
+
+	response, err := h.rentClient.AddBike(r.Context(), req.Name, req.Location)
+	if err != nil {
+		log.Printf("API Gateway: Error calling rent service: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("API Gateway: AddBike successful: bike_id=%s, name=%s", response.ID, response.Name)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// @Summary Delete a bike
+// @Description Delete a bike from the fleet by ID
+// @Tags bikes
+// @Produce json
+// @Param bike_id path string true "Bike ID (UUID)"
+// @Success 200 {object} DeleteBikeResponse
+// @Router /api/v1/bikes/{bike_id} [delete]
+func (h *Handlers) DeleteBike(w http.ResponseWriter, r *http.Request) {
+	bikeID := chi.URLParam(r, "bike_id")
+	if bikeID == "" {
+		http.Error(w, "bike_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Log request
+	log.Printf("API Gateway: Received DeleteBike request: bike_id=%s", bikeID)
+
+	response, err := h.rentClient.DeleteBike(r.Context(), bikeID)
+	if err != nil {
+		log.Printf("API Gateway: Error calling rent service: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !response.Success {
+		log.Printf("API Gateway: DeleteBike failed: bike_id=%s, error=%s", bikeID, response.Message)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	log.Printf("API Gateway: DeleteBike successful: bike_id=%s", bikeID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *Handlers) RegisterRoutes(r *chi.Mux) {
 	r.Post("/api/v1/rent/start", h.StartRent)
 	r.Post("/api/v1/rent/end", h.EndRent)
 	r.Get("/api/v1/bikes/available", h.GetAvailableBikes)
+	r.Post("/api/v1/bikes/add", h.AddBike)
+	r.Delete("/api/v1/bikes/{bike_id}", h.DeleteBike)
 	r.Get("/api/v1/stats/daily/{date}", h.GetDailyStats)
 	r.Get("/api/v1/stats/active", h.GetActiveRents)
 	r.Get("/health", h.Health)
@@ -201,5 +272,23 @@ type DailyStatsResponse struct {
 
 type ActiveRentsResponse struct {
 	ActiveRents int64 `json:"active_rents"`
+}
+
+type AddBikeRequest struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+
+type BikeResponse struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Location string `json:"location"`
+	Message  string `json:"message"`
+}
+
+type DeleteBikeResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
